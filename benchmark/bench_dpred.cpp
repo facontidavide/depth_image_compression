@@ -19,7 +19,7 @@
 #include <string>
 #include <vector>
 
-#include "depth_codec.hpp"
+#include "depth_codec/depth_codec.hpp"
 
 namespace fs = std::filesystem;
 

@@ -1,0 +1,51 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  conan:
+    name: conan (ubuntu)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install conan
+        run: pipx install conan
+
+      - name: Detect profile
+        run: conan profile detect
+
+      - name: Build, test and package
+        run: conan create . --build=missing
+
+  colcon:
+    name: colcon (ROS 2 jazzy)
+    runs-on: ubuntu-latest
+    container: ros:jazzy
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: ws/src/depth_codec
+
+      - name: Install dependencies
+        run: |
+          apt-get update
+          rosdep update || true
+          rosdep install --from-paths ws/src --ignore-src -y
+
+      - name: Build
+        working-directory: ws
+        run: |
+          . /opt/ros/jazzy/setup.sh
+          colcon build --event-handlers console_direct+ \
+            --cmake-args -DDEPTH_CODEC_MARCH_NATIVE=OFF
+
+      - name: Test
+        working-directory: ws
+        run: |
+          . /opt/ros/jazzy/setup.sh
+          colcon test --event-handlers console_direct+
+          colcon test-result --verbose

@@ -1,12 +1,108 @@
-# `dpred` — lossless compression of 32FC1 depth images
+# depth_image_compression
 
-`dpred` is the default method behind `encode_depth()` / `decode_depth()`
-(see `depth_codec.hpp`). It losslessly compresses single-channel `float32`
-depth images, bit-exactly: NaN payloads, ±Inf and −0.0 all round-trip
-unchanged. On the 260-frame 1920×1200 evaluation corpus it achieves
-**5.82× compression at 614 MB/s encode / 914 MB/s decode** (single thread,
-i7-13700H, ZSTD level 1), versus 2.31× at 180 MB/s for plain `zstd:3` on the
-raw floats.
+Lossless compression of raw **32FC1** (single-channel `float32`) depth images.
+Bit-exact round trip: NaN payloads, ±Inf and −0.0 are preserved unchanged.
+
+On a 260-frame 1920×1200 corpus recorded from a ZED camera, the default
+method (`dpred`, ZSTD level 1, single thread on an i7-13700H) achieves:
+
+| method | ratio | encode MB/s | decode MB/s |
+|---|---|---|---|
+| zstd:3 on raw floats (baseline) | 2.31 | 180 | 1011 |
+| **dpred:1 (default)** | **5.82** | **614** | **914** |
+| dpred:3 | 5.91 | 436 | 890 |
+
+For scale: the ROS `compressedDepth` (16-bit PNG) transport encoding of the
+same frames compresses 4.42× — `dpred` is ~25% smaller *and* lossless on the
+floats.
+
+## API
+
+```cpp
+#include "depth_codec/depth_codec.hpp"
+
+std::vector<uint8_t> blob = depthcodec::encode_depth(img, width, height);  // dpred:1
+uint32_t w, h;
+std::vector<float> back = depthcodec::decode_depth(blob.data(), blob.size(), &w, &h);
+```
+
+The blob is self-describing (magic, method name, level, dimensions), so the
+decoder needs nothing but the bytes. Other methods from the registry
+(`store`, `zstd`, `bss`, `alp`, `alprd`, `dict`, `fpred`) can be selected via
+the optional `method`/`level` arguments; they exist mainly for benchmarking.
+
+## Layout
+
+```
+include/depth_codec/   public header
+src/                   implementation
+test/                  round-trip unit tests (ctest)
+benchmark/             corpus benchmark + google-benchmark harness
+```
+
+## Building
+
+Only dependency: **libzstd** (and a C++20 compiler). ZSTD level is
+intentionally capped at 3 by usage convention; `-march=native` is ON by
+default for the AVX2 fast paths (`-DDEPTH_CODEC_MARCH_NATIVE=OFF` for
+portable builds — a scalar fallback is used).
+
+### Plain CMake
+
+```bash
+sudo apt install libzstd-dev
+cmake -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build -j
+ctest --test-dir build
+```
+
+### Conan (2.x)
+
+```bash
+conan create . --build=missing        # builds, runs tests, packages
+```
+
+or for development:
+
+```bash
+conan install . --output-folder=build --build=missing
+cmake -B build -DCMAKE_TOOLCHAIN_FILE=build/conan_toolchain.cmake -DCMAKE_BUILD_TYPE=Release
+cmake --build build -j
+```
+
+### ROS 2 colcon (Jazzy)
+
+The repo is a plain-CMake colcon package (`package.xml`, build type `cmake`):
+
+```bash
+cd ~/ws/src && git clone https://github.com/facontidavide/depth_image_compression.git
+cd ~/ws && rosdep install --from-paths src --ignore-src -y
+colcon build
+colcon test
+```
+
+CI runs both flows: see `.github/workflows/ci.yaml`.
+
+## Benchmarks
+
+`benchmark/bench` verifies bit-exactness and measures ratio/throughput for
+any set of methods over a corpus of `.bin` files
+(`uint32 width | uint32 height | float32 * w*h`, little-endian):
+
+```bash
+build/bench /path/to/corpus --methods zstd:3,dict:1,dpred:1,dpred:3
+```
+
+`benchmark/bench_dpred` is a google-benchmark harness over 10 frames spread
+across the corpus (used to iterate on `dpred` optimizations):
+
+```bash
+build/bench_dpred /path/to/corpus --benchmark_filter=all10
+```
+
+---
+
+# The `dpred` algorithm
 
 ## Why it works
 
@@ -134,26 +230,6 @@ These affect speed only, never the format:
 - Thread-local reused ZSTD contexts.
 
 Encode time budget after these: ~57% ZSTD, ~32% dictionary pass, ~11% rest.
-
-## Measured results (260 frames, 2.4 GB raw, single thread)
-
-| method   | ratio | enc MB/s | dec MB/s | note                        |
-|----------|-------|----------|----------|-----------------------------|
-| zstd:3   | 2.31  | 180      | 1011     | baseline on raw floats      |
-| dict:3   | 2.91  | 168      | 1157     | dictionary, no prediction   |
-| dpred:1  | 5.82  | 614      | 914      | **default**                 |
-| dpred:3  | 5.91  | 436      | 890      | slightly smaller, slower    |
-
-For scale: the ROS `compressedDepth` PNGs these frames came from total
-4.42× — `dpred` beats the original *lossy-transport* encoding by ~25%
-while being bit-exact on the floats.
-
-Reproduce with:
-
-```
-build/bench ../corpus_32fc1                      # ratio + losslessness, all methods
-build/bench_dpred ../corpus_32fc1                # google benchmark, dpred:1 focus
-```
 
 ## Scope and limits
 

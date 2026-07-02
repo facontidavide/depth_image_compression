@@ -1,4 +1,4 @@
-#include "depth_codec.hpp"
+#include "depth_codec/depth_codec.hpp"
 
 #include <zstd.h>
 
