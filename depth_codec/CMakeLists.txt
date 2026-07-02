@@ -21,21 +21,26 @@ elseif(TARGET zstd::libzstd_static)
 elseif(TARGET zstd::libzstd_shared)
   set(DEPTH_CODEC_ZSTD zstd::libzstd_shared)
 else()
+  # Link by absolute path: a local helper target would not be exportable via
+  # install(EXPORT), a plain path is.
   find_path(ZSTD_INCLUDE_DIR zstd.h REQUIRED)
   find_library(ZSTD_LIBRARY NAMES zstd REQUIRED)
-  add_library(depth_codec_zstd INTERFACE)
-  target_include_directories(depth_codec_zstd INTERFACE ${ZSTD_INCLUDE_DIR})
-  target_link_libraries(depth_codec_zstd INTERFACE ${ZSTD_LIBRARY})
-  set(DEPTH_CODEC_ZSTD depth_codec_zstd)
+  set(DEPTH_CODEC_ZSTD ${ZSTD_LIBRARY})
 endif()
 
 # ---- library ---------------------------------------------------------------
 add_library(depthcodec src/depth_codec.cpp)
 add_library(depth_codec::depthcodec ALIAS depthcodec)
+# PIC: the static library gets linked into shared plugin libraries
+# (dpred_image_transport).
+set_target_properties(depthcodec PROPERTIES POSITION_INDEPENDENT_CODE ON)
 target_include_directories(depthcodec PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>)
 target_link_libraries(depthcodec PUBLIC ${DEPTH_CODEC_ZSTD})
+if(ZSTD_INCLUDE_DIR)
+  target_include_directories(depthcodec PRIVATE ${ZSTD_INCLUDE_DIR})
+endif()
 target_compile_options(depthcodec PRIVATE -O3)
 if(DEPTH_CODEC_MARCH_NATIVE)
   target_compile_options(depthcodec PRIVATE -march=native)

@@ -35,12 +35,42 @@ the optional `method`/`level` arguments; they exist mainly for benchmarking.
 
 ## Layout
 
+Two colcon packages:
+
 ```
-include/depth_codec/   public header
-src/                   implementation
-test/                  round-trip unit tests (ctest)
-benchmark/             corpus benchmark + google-benchmark harness
+depth_codec/                     the codec library (plain CMake, no ROS required)
+├── include/depth_codec/         public header
+├── src/                         implementation
+├── test/                        round-trip unit tests (ctest)
+├── benchmark/                   corpus benchmark + google-benchmark harness
+└── conanfile.py                 Conan 2 recipe
+dpred_image_transport/           ROS 2 image_transport plugin
 ```
+
+## ROS 2: transparent depth compression (`dpred_image_transport`)
+
+`dpred_image_transport` is an [image_transport](https://index.ros.org/p/image_transport/)
+plugin: once installed, every `image_transport` publisher of a 32FC1 depth
+topic transparently offers `<base_topic>/dpred` (a `sensor_msgs/CompressedImage`),
+and subscribers (rviz2 included) can select the `dpred` transport. The blob is
+self-describing, so bags recorded with it remain decodable standalone.
+
+```bash
+# republish an existing raw depth topic as dpred (e.g. for recording):
+ros2 run image_transport republish --ros-args \
+  -p in_transport:=raw  -p out_transport:=dpred \
+  -r in:=/camera/depth/image -r out:=/relay/depth
+
+# and back:
+ros2 run image_transport republish --ros-args \
+  -p in_transport:=dpred -p out_transport:=raw \
+  -r in:=/relay/depth -r out:=/camera/depth/decoded
+```
+
+Non-32FC1 encodings are declined with an error log (16UC1 support is on the
+roadmap — the codec pipeline handles it naturally). Verified end-to-end
+(bit-exact through a raw → dpred → raw republish chain) on ROS 2 Jazzy and
+Lyrical.
 
 ## Building
 
@@ -49,27 +79,19 @@ intentionally capped at 3 by usage convention; `-march=native` is ON by
 default for the AVX2 fast paths (`-DDEPTH_CODEC_MARCH_NATIVE=OFF` for
 portable builds — a scalar fallback is used).
 
-### Plain CMake
+### Plain CMake (library only)
 
 ```bash
 sudo apt install libzstd-dev
-cmake -B build -DCMAKE_BUILD_TYPE=Release
+cmake -B build -S depth_codec -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j
 ctest --test-dir build
 ```
 
-### Conan (2.x)
+### Conan (2.x, library only)
 
 ```bash
-conan create . --build=missing        # builds, runs tests, packages
-```
-
-or for development:
-
-```bash
-conan install . --output-folder=build --build=missing
-cmake -B build -DCMAKE_TOOLCHAIN_FILE=build/conan_toolchain.cmake -DCMAKE_BUILD_TYPE=Release
-cmake --build build -j
+conan create depth_codec --build=missing    # builds, runs tests, packages
 ```
 
 ### ROS 2 colcon (Jazzy)

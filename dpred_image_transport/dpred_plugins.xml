@@ -1,0 +1,17 @@
+<library path="dpred_image_transport">
+  <class name="image_transport/dpred_pub"
+         type="dpred_image_transport::DpredPublisher"
+         base_class_type="image_transport::PublisherPlugin">
+    <description>
+      Losslessly compresses 32FC1 depth images with depth_codec (dpred:
+      value dictionary + 2D MED prediction + zstd).
+    </description>
+  </class>
+  <class name="image_transport/dpred_sub"
+         type="dpred_image_transport::DpredSubscriber"
+         base_class_type="image_transport::SubscriberPlugin">
+    <description>
+      Decodes dpred-compressed depth images back to 32FC1.
+    </description>
+  </class>
+</library>

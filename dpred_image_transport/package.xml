@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>dpred_image_transport</name>
+  <version>0.1.0</version>
+  <description>
+    image_transport plugin for lossless compression of 32FC1 depth images
+    using depth_codec (dpred: value dictionary + 2D MED prediction + zstd).
+  </description>
+  <maintainer email="davide.faconti@gmail.com">Davide Faconti</maintainer>
+  <license>Apache-2.0</license>
+
+  <url type="repository">https://github.com/facontidavide/depth_image_compression</url>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <depend>depth_codec</depend>
+  <depend>image_transport</depend>
+  <depend>pluginlib</depend>
+  <depend>rclcpp</depend>
+  <depend>sensor_msgs</depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+    <image_transport plugin="${prefix}/dpred_plugins.xml"/>
+  </export>
+</package>

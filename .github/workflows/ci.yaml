@@ -18,17 +18,21 @@ jobs:
       - name: Detect profile
         run: conan profile detect
 
-      - name: Build, test and package
-        run: conan create . --build=missing
+      - name: Build, test and package depth_codec
+        run: conan create depth_codec --build=missing
 
   colcon:
-    name: colcon (ROS 2 jazzy)
+    name: colcon (ROS 2 ${{ matrix.distro }})
     runs-on: ubuntu-latest
-    container: ros:jazzy
+    strategy:
+      fail-fast: false
+      matrix:
+        distro: [jazzy, lyrical]
+    container: ros:${{ matrix.distro }}
     steps:
       - uses: actions/checkout@v4
         with:
-          path: ws/src/depth_codec
+          path: ws/src/depth_image_compression
 
       - name: Install dependencies
         run: |
@@ -39,13 +43,13 @@ jobs:
       - name: Build
         working-directory: ws
         run: |
-          . /opt/ros/jazzy/setup.sh
+          . /opt/ros/${{ matrix.distro }}/setup.sh
           colcon build --event-handlers console_direct+ \
             --cmake-args -DDEPTH_CODEC_MARCH_NATIVE=OFF
 
       - name: Test
         working-directory: ws
         run: |
-          . /opt/ros/jazzy/setup.sh
+          . /opt/ros/${{ matrix.distro }}/setup.sh
           colcon test --event-handlers console_direct+
           colcon test-result --verbose
