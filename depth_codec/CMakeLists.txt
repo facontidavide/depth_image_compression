@@ -16,10 +16,12 @@ endif()
 find_package(zstd CONFIG QUIET)
 if(TARGET zstd::libzstd)
   set(DEPTH_CODEC_ZSTD zstd::libzstd)
+elseif(TARGET zstd::libzstd_shared)
+  # Prefer shared over static: distro static libzstd.a is not built with
+  # -fPIC, so it cannot be linked into shared libraries (the ROS plugin).
+  set(DEPTH_CODEC_ZSTD zstd::libzstd_shared)
 elseif(TARGET zstd::libzstd_static)
   set(DEPTH_CODEC_ZSTD zstd::libzstd_static)
-elseif(TARGET zstd::libzstd_shared)
-  set(DEPTH_CODEC_ZSTD zstd::libzstd_shared)
 else()
   # Link by absolute path: a local helper target would not be exportable via
   # install(EXPORT), a plain path is.
