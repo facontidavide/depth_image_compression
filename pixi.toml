@@ -1,0 +1,46 @@
+# Pixi environments for depth_image_compression.
+#
+#   pixi run test              ROS-free: build depth_codec + unit tests
+#   pixi run bench <corpus>    ROS-free: corpus benchmark
+#   pixi run -e ros test-ros   full colcon build (library + image_transport
+#                              plugin) using RoboStack ROS 2 Jazzy — no system
+#                              ROS installation required
+[workspace]
+name = "depth_image_compression"
+channels = ["https://prefix.dev/conda-forge"]
+platforms = ["linux-64"]
+
+# ---- default environment: ROS-free toolchain -------------------------------
+[dependencies]
+cxx-compiler = "*"
+cmake = ">=3.16"
+ninja = "*"
+zstd = "*"
+
+[tasks]
+configure = "cmake -B .build -S depth_codec -GNinja -DCMAKE_BUILD_TYPE=Release"
+build = { cmd = "cmake --build .build", depends-on = ["configure"] }
+test = { cmd = "ctest --test-dir .build --output-on-failure", depends-on = ["build"] }
+bench = { cmd = ".build/bench", depends-on = ["build"] }
+
+# ---- ros environment: RoboStack ROS 2 Jazzy + colcon ------------------------
+[feature.ros]
+channels = ["https://prefix.dev/robostack-jazzy"]
+
+[feature.ros.dependencies]
+ros-jazzy-ament-cmake = "*"
+ros-jazzy-image-transport = "*"
+ros-jazzy-pluginlib = "*"
+ros-jazzy-rclcpp = "*"
+ros-jazzy-sensor-msgs = "*"
+colcon-common-extensions = "*"
+
+[feature.ros.tasks]
+build-ros = """colcon build --merge-install --event-handlers console_cohesion+ \
+  --cmake-args -DDEPTH_CODEC_BUILD_BENCHMARKS=OFF -DDEPTH_CODEC_MARCH_NATIVE=OFF"""
+test-ros = { cmd = "colcon test --merge-install && colcon test-result --verbose", depends-on = [
+  "build-ros",
+] }
+
+[environments]
+ros = ["ros"]

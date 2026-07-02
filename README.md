@@ -42,9 +42,9 @@ depth_codec/                     the codec library (plain CMake, no ROS required
 ├── include/depth_codec/         public header
 ├── src/                         implementation
 ├── test/                        round-trip unit tests (ctest)
-├── benchmark/                   corpus benchmark + google-benchmark harness
-└── conanfile.py                 Conan 2 recipe
+└── benchmark/                   corpus benchmark + google-benchmark harness
 dpred_image_transport/           ROS 2 image_transport plugin
+pixi.toml                        pixi environments (ROS-free + RoboStack ROS 2)
 ```
 
 ## ROS 2: transparent depth compression (`dpred_image_transport`)
@@ -79,6 +79,20 @@ intentionally capped at 3 by usage convention; `-march=native` is ON by
 default for the AVX2 fast paths (`-DDEPTH_CODEC_MARCH_NATIVE=OFF` for
 portable builds — a scalar fallback is used).
 
+### Pixi (recommended — no system dependencies needed)
+
+[Pixi](https://pixi.sh) provides two locked environments; the only thing you
+need installed is pixi itself.
+
+```bash
+pixi run test              # ROS-free: build the library + unit tests
+pixi run bench <corpus>    # ROS-free: corpus benchmark
+
+pixi run -e ros test-ros   # library + ROS plugin via colcon, using
+                           # RoboStack ROS 2 Jazzy from conda — works on
+                           # machines with no ROS installation at all
+```
+
 ### Plain CMake (library only)
 
 ```bash
@@ -86,12 +100,6 @@ sudo apt install libzstd-dev
 cmake -B build -S depth_codec -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j
 ctest --test-dir build
-```
-
-### Conan (2.x, library only)
-
-```bash
-conan create depth_codec --build=missing    # builds, runs tests, packages
 ```
 
 ### ROS 2 colcon (Jazzy)

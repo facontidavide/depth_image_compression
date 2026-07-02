@@ -1,4 +1,8 @@
 build*/
+.build/
+install/
+log/
+.pixi/
 *.log
 perf.data*
 CMakeUserPresets.json

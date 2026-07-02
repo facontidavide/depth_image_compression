@@ -6,23 +6,30 @@ on:
   pull_request:
 
 jobs:
-  conan:
-    name: conan (ubuntu)
+  pixi:
+    name: pixi (ROS-free)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: prefix-dev/setup-pixi@v0.10.0
+        with:
+          cache: true
+      - name: Build and test depth_codec
+        run: pixi run test
 
-      - name: Install conan
-        run: pipx install conan
-
-      - name: Detect profile
-        run: conan profile detect
-
-      - name: Build, test and package depth_codec
-        run: conan create depth_codec --build=missing
+  pixi-ros:
+    name: pixi (RoboStack ROS 2 jazzy)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: prefix-dev/setup-pixi@v0.10.0
+        with:
+          cache: true
+      - name: Build and test both packages with colcon
+        run: pixi run -e ros test-ros
 
   colcon:
-    name: colcon (ROS 2 ${{ matrix.distro }})
+    name: colcon (ROS 2 ${{ matrix.distro }}, apt)
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
