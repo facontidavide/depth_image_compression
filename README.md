@@ -1,5 +1,7 @@
 # depth_image_compression
 
+[![ci](https://github.com/facontidavide/depth_image_compression/actions/workflows/ci.yaml/badge.svg)](https://github.com/facontidavide/depth_image_compression/actions/workflows/ci.yaml)
+
 Lossless compression of raw **32FC1** (single-channel `float32`) depth images.
 Bit-exact round trip: NaN payloads, ±Inf and −0.0 are preserved unchanged.
 
